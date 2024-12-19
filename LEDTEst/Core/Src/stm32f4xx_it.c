@@ -50,12 +50,39 @@ extern TIM_HandleTypeDef htim3; // Ensure htim3 is declared globally
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN PFP */
 void processReceivedByte(uint8_t byte);
+extern void RotaryEncoderTurnedCallback(void);
+void configureTimer(TIM_HandleTypeDef *htim, uint32_t bpm);
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+volatile int16_t encoderPosition = 0;
+volatile uint8_t lastEncoderState = 0;
+
+
+#define NUM_SAMPLES 4               // Number of samples for averaging durations
+#define PERIOD_SAMPLES 4            // Number of samples for averaging periods
+#define DEBOUNCE_DELAY_TICKS 250000 // 250ms debounce in timer ticks
+#define TIMER_FREQ 1000000          // Timer frequency in Hz (1 MHz)
+#define TIMEOUT_PERIOD_TICKS 2000000 // Timeout period in timer ticks (2s)
+#define INITIAL_DURATION 50000      // Default initial duration (50ms)
+
+#define DEBOUNCE_DELAY_MS 5
+
+
+
+volatile uint32_t durations[NUM_SAMPLES] = {0};   // Circular buffer for durations
+volatile uint8_t durationIndex = 0;               // Index in the buffer
+volatile uint8_t validSamples = 0;                // Count of valid samples
+volatile uint32_t previousCapture = 0;            // Previous capture value
+volatile uint32_t lastDebounceCapture = 0;        // Last capture for debounce
+volatile float currentBPM = 120.0;                // Default BPM
+
+volatile uint32_t periods[PERIOD_SAMPLES] = {0};  // Circular buffer for periods
+volatile uint8_t periodIndex = 0;                 // Index in the buffer
+volatile uint8_t validPeriods = 0;                // Count of valid period samples
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
@@ -279,44 +306,72 @@ void UART4_IRQHandler(void)
 
 /* USER CODE BEGIN 1 */
 
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
-    if (GPIO_Pin == TapTempo_Pin) {
-       // HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_1);
-        HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+// Callback function for the rotary encoder
+void RotaryEncoderTurnedCallback(void)
+{
+    // Directly read the rotary encoder pins
+    uint8_t clkState = HAL_GPIO_ReadPin(Rotary_CLK_GPIO_Port, Rotary_CLK_Pin);
+    uint8_t dtState = HAL_GPIO_ReadPin(Rotary_DT_GPIO_Port, Rotary_DT_Pin);
+
+    // Detect state changes (only on the CLK pin for simplicity)
+    if (clkState != lastEncoderState)
+    {
+        if (clkState == GPIO_PIN_RESET) // CLK transition detected (falling edge)
+        {
+            if (dtState == GPIO_PIN_SET)
+            {
+                // Clockwise rotation
+                encoderPosition++;
+                currentBPM += 1.0;
+            }
+            else
+            {
+                // Counter-clockwise rotation
+                encoderPosition--;
+                currentBPM -= 1.0;
+            }
+
+            // Clamp BPM to a reasonable range
+            if (currentBPM < 1.0)
+                currentBPM = 1.0;
+            else if (currentBPM > 240.0)
+                currentBPM = 240.0;
+
+            // Update the timer and display with the new BPM
+            if (currentBPM > 0.0 && currentBPM < 240.0) { // Set a reasonable upper BPM limit
+
+                        configureTimer(&htim3, currentBPM);
+                    }
+            updateBpm((uint32_t)currentBPM);
+        }
+
+        // Update the last state
+        lastEncoderState = clkState;
     }
 }
 
 
 
-#define NUM_SAMPLES 4               // Number of samples for averaging durations
-#define PERIOD_SAMPLES 4            // Number of samples for averaging periods
-#define DEBOUNCE_DELAY_TICKS 250000 // 250ms debounce in timer ticks
-#define TIMER_FREQ 1000000          // Timer frequency in Hz (1 MHz)
-#define TIMEOUT_PERIOD_TICKS 2000000 // Timeout period in timer ticks (2s)
-#define INITIAL_DURATION 50000      // Default initial duration (50ms)
-
-volatile uint32_t durations[NUM_SAMPLES] = {0};   // Circular buffer for durations
-volatile uint8_t durationIndex = 0;               // Index in the buffer
-volatile uint8_t validSamples = 0;                // Count of valid samples
-volatile uint32_t previousCapture = 0;            // Previous capture value
-volatile uint32_t lastDebounceCapture = 0;        // Last capture for debounce
-volatile float currentBPM = 120.0;                // Default BPM
-
-volatile uint32_t periods[PERIOD_SAMPLES] = {0};  // Circular buffer for periods
-volatile uint8_t periodIndex = 0;                 // Index in the buffer
-volatile uint8_t validPeriods = 0;                // Count of valid period samples
-
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
+    if (GPIO_Pin == TapTempo_Pin) {
+       // HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_1);
+        HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+    }
+    if (GPIO_Pin == Rotary_CLK_Pin)
+        {
+            RotaryEncoderTurnedCallback();
+        }
+}
 
 
 void configureTimer(TIM_HandleTypeDef *htim, uint32_t bpm) {
-    // Assuming a 96 MHz system clock
+    // Your existing code for configuring the timer
     uint32_t timerClock = 96000000;
     uint32_t prescaler = htim->Init.Prescaler + 1;
     uint32_t period = (timerClock / ((bpm / 60.0) * prescaler)) - 1;
 
-    // Update the timer period
     __HAL_TIM_SET_AUTORELOAD(htim, period);
-    __HAL_TIM_SET_COMPARE(htim, TIM_CHANNEL_1, period / 8); // 25% duty cycle
+    __HAL_TIM_SET_COMPARE(htim, TIM_CHANNEL_1, period / 8); // Example: 25% duty cycle
     __HAL_TIM_SET_COUNTER(htim, 0);
 }
 
@@ -368,13 +423,13 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) {
         float bpm = (timeInSeconds > 0) ? (60.0 / timeInSeconds) : 0;
 
         // Safety check to avoid invalid period or BPM values
-        if (bpm > 0.0 && bpm < 500.0) { // Set a reasonable upper BPM limit
+        if (bpm > 0.0 && bpm < 240.0) { // Set a reasonable upper BPM limit
             currentBPM = bpm;
             configureTimer(&htim3, currentBPM);
         }
 
         // Update the display with the new BPM
-        tapTempoPressed((uint32_t)currentBPM);
+        updateBpm((uint32_t)currentBPM);
 
         // Update last known duration
         lastValidDuration = duration;

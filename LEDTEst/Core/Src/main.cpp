@@ -79,7 +79,7 @@ void handleMidiMessage(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-void tapTempoPressed(uint32_t bpm) {
+void updateBpm(uint32_t bpm) {
     char buffer[16]; // Buffer to store the converted string
     I2C_LCD_SetCursor(LCD_1, 5, 0);
     I2C_LCD_WriteString(LCD_1, "               ");

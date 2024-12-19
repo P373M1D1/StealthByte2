@@ -1,7 +1,7 @@
 #include <errno.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-
+#include <sys/times.h>
 /* Variables */
 extern int __io_putchar(int ch) __attribute__((weak));
 extern int __io_getchar(void) __attribute__((weak));

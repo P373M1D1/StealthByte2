@@ -60,7 +60,7 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
 void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
-void tapTempoPressed(uint32_t capture);
+void updateBpm(uint32_t capture);
 void updateDisplay(void);
 /* USER CODE END EFP */
 
