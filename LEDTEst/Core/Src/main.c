@@ -159,8 +159,7 @@ int main(void)
 
 	          updateDisplay();  // Call the display update function
 	      }
-
-    /* USER CODE END WHILE */
+	      /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
   }

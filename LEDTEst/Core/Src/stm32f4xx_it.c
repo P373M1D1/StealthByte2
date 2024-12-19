@@ -327,7 +327,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   if (htim->Instance == TIM3)
   {
          //Send the MIDI Tap Tempo CC message
-    sendTapTempo();
+    synchroniseTempo();
     }
 }
 
@@ -386,7 +386,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
     if (GPIO_Pin == Rotary_SW_Pin)
     {
     	syncButtonPressed = 1;
-    	syncSamples = 5;
+    	syncSamples = 7;
     	}
 }
 
@@ -457,7 +457,7 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) {
 
         // Update the display with the new BPM
         updateBpm((uint32_t)currentBPM);
-        tapTempoPressed = 1;
+        sendTapTempo();
         // Update last known duration
         lastValidDuration = duration;
     }
