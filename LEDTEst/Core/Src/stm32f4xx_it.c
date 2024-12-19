@@ -22,7 +22,7 @@
 #include "stm32f4xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "midiFunctions.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -42,7 +42,6 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN PV */
-//extern uint8_t buffer [3];
 extern uint8_t receivedByte;
 extern TIM_HandleTypeDef htim3; // Ensure htim3 is declared globally
 /* USER CODE END PV */
@@ -52,7 +51,7 @@ extern TIM_HandleTypeDef htim3; // Ensure htim3 is declared globally
 void processReceivedByte(uint8_t byte);
 extern void RotaryEncoderTurnedCallback(void);
 void configureTimer(TIM_HandleTypeDef *htim, uint32_t bpm);
-
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -79,14 +78,17 @@ volatile uint8_t validSamples = 0;                // Count of valid samples
 volatile uint32_t previousCapture = 0;            // Previous capture value
 volatile uint32_t lastDebounceCapture = 0;        // Last capture for debounce
 volatile float currentBPM = 120.0;                // Default BPM
-
 volatile uint32_t periods[PERIOD_SAMPLES] = {0};  // Circular buffer for periods
 volatile uint8_t periodIndex = 0;                 // Index in the buffer
 volatile uint8_t validPeriods = 0;                // Count of valid period samples
+volatile uint8_t tapTempoPressed = 0;
+volatile uint8_t syncButtonPressed = 0;
+volatile uint8_t syncSamples = 4;
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
 extern TIM_HandleTypeDef htim2;
+extern TIM_HandleTypeDef htim3;
 extern UART_HandleTypeDef huart4;
 /* USER CODE BEGIN EV */
 extern uint8_t buffer[3];
@@ -277,6 +279,20 @@ void TIM2_IRQHandler(void)
 }
 
 /**
+  * @brief This function handles TIM3 global interrupt.
+  */
+void TIM3_IRQHandler(void)
+{
+  /* USER CODE BEGIN TIM3_IRQn 0 */
+
+  /* USER CODE END TIM3_IRQn 0 */
+  HAL_TIM_IRQHandler(&htim3);
+  /* USER CODE BEGIN TIM3_IRQn 1 */
+
+  /* USER CODE END TIM3_IRQn 1 */
+}
+
+/**
   * @brief This function handles EXTI line[15:10] interrupts.
   */
 void EXTI15_10_IRQHandler(void)
@@ -305,6 +321,15 @@ void UART4_IRQHandler(void)
 }
 
 /* USER CODE BEGIN 1 */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  // Check if the interrupt is from TIM3
+  if (htim->Instance == TIM3)
+  {
+         //Send the MIDI Tap Tempo CC message
+    sendTapTempo();
+    }
+}
 
 // Callback function for the rotary encoder
 void RotaryEncoderTurnedCallback(void)
@@ -353,14 +378,16 @@ void RotaryEncoderTurnedCallback(void)
 
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
-    if (GPIO_Pin == TapTempo_Pin) {
-       // HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_1);
-        HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
-    }
+
     if (GPIO_Pin == Rotary_CLK_Pin)
         {
             RotaryEncoderTurnedCallback();
         }
+    if (GPIO_Pin == Rotary_SW_Pin)
+    {
+    	syncButtonPressed = 1;
+    	syncSamples = 5;
+    	}
 }
 
 
@@ -430,13 +457,11 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) {
 
         // Update the display with the new BPM
         updateBpm((uint32_t)currentBPM);
-
+        tapTempoPressed = 1;
         // Update last known duration
         lastValidDuration = duration;
     }
 }
-
-
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {

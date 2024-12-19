@@ -47,6 +47,10 @@ extern volatile uint8_t controllerNumber;
 extern volatile uint8_t controllerValue;
 extern volatile uint8_t programChangeNumber;
 extern volatile uint8_t midi_received_flag;
+extern volatile uint8_t sendTapTempoFlag;
+extern volatile uint8_t tapTempoPressed;
+extern volatile uint8_t syncButtonPressed;
+extern volatile uint8_t syncSamples;
 /* USER CODE END EC */
 
 /* Exported macro ------------------------------------------------------------*/
@@ -74,6 +78,8 @@ void updateDisplay(void);
 #define Rotary_SW_EXTI_IRQn EXTI4_IRQn
 #define TIM2_CH1_Pin GPIO_PIN_5
 #define TIM2_CH1_GPIO_Port GPIOA
+#define TapTempoLED_Pin GPIO_PIN_6
+#define TapTempoLED_GPIO_Port GPIOA
 #define LD1_Pin GPIO_PIN_0
 #define LD1_GPIO_Port GPIOB
 #define TapTempo_Pin GPIO_PIN_12
