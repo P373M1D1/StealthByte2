@@ -385,7 +385,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
     if (GPIO_Pin == Rotary_SW_Pin)
     {
     	syncButtonPressed = 1;
-    	syncSamples = 7;
+    	syncSamples = 6;
     	}
 }
 
