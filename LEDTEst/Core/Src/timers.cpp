@@ -17,7 +17,7 @@ volatile uint32_t capture = 0;                    // Capture value
 volatile uint32_t periods[PERIOD_SAMPLES] = {0};  // Circular buffer for periods
 volatile uint8_t periodIndex = 0;                 // Index in the buffer
 volatile uint8_t validPeriods = 0;                // Count of valid period samples
-double correctionValue = 1.0399;
+double correctionValue = 1.0499;
 uint8_t validSamples = 0;
 uint8_t lastValidDuration= 0;
 

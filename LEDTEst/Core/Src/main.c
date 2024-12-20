@@ -113,13 +113,14 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-
+  HAL_Delay(1000);
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART3_UART_Init();
   MX_USB_OTG_FS_PCD_Init();
+
   MX_I2C1_Init();
   MX_UART4_Init();
   MX_TIM2_Init();
@@ -131,13 +132,13 @@ int main(void)
   I2C_LCD_SetCursor(LCD_1, 0, 0);
   I2C_LCD_WriteString(LCD_1, "BPM: 120");
   I2C_LCD_SetCursor(LCD_1, 0, 1);
-  snprintf(midi_value_str, sizeof(midi_value_str), "Controller: %d", controllerNumber);
+  snprintf(midi_value_str, sizeof(midi_value_str), "Ctl:   %d", controllerNumber);
   I2C_LCD_WriteString(LCD_1, midi_value_str);
   I2C_LCD_SetCursor(LCD_1, 0, 2);
-  snprintf(midi_value_str, sizeof(midi_value_str), "Value: %d", controllerValue);
+  snprintf(midi_value_str, sizeof(midi_value_str), "Val:   %d", controllerValue);
   I2C_LCD_WriteString(LCD_1, midi_value_str);
   I2C_LCD_SetCursor(LCD_1, 0, 3);
-  snprintf(midi_value_str, sizeof(midi_value_str), "Program: %d", programChangeNumber);
+  snprintf(midi_value_str, sizeof(midi_value_str), "Pgm:   %d", programChangeNumber);
   I2C_LCD_WriteString(LCD_1, midi_value_str);
   configureTimer(&htim5, 120);
   HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_1);
