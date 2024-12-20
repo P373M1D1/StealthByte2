@@ -5,7 +5,12 @@
 extern "C" {
 #endif
 
+#include "main.h"
+#include <stdint.h>
+
+
 void updateDisplay(void);
+void updateBpm(uint32_t bpm);
 
 #ifdef __cplusplus
 }

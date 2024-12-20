@@ -37,7 +37,16 @@
 
 /* Exported constants --------------------------------------------------------*/
 /* USER CODE BEGIN EC */
-
+ extern TIM_HandleTypeDef htim2;
+ extern TIM_HandleTypeDef htim3;
+ extern TIM_HandleTypeDef htim5;
+ extern UART_HandleTypeDef huart4;
+ extern volatile float currentBPM;
+ extern uint8_t buffer[3];
+ extern uint8_t statusByteControlChange;
+ extern uint8_t statusByteProgramChange;
+ extern uint8_t statusControllerNumber;
+ extern uint8_t receivedByte;
 /* USER CODE END EC */
 
 /* Exported macro ------------------------------------------------------------*/
@@ -60,6 +69,7 @@ void EXTI9_5_IRQHandler(void);
 void TIM2_IRQHandler(void);
 void TIM3_IRQHandler(void);
 void EXTI15_10_IRQHandler(void);
+void TIM5_IRQHandler(void);
 void UART4_IRQHandler(void);
 /* USER CODE BEGIN EFP */
 

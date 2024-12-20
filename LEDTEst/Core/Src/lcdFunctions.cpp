@@ -5,6 +5,14 @@
 
 // External variables used in the function
 
+void updateBpm(uint32_t bpm) {
+    char buffer[16]; // Buffer to store the converted string
+    I2C_LCD_SetCursor(LCD_1, 5, 0);
+    I2C_LCD_WriteString(LCD_1, "               ");
+    I2C_LCD_SetCursor(LCD_1, 0, 0); // Set the cursor on the LCD
+    sprintf(buffer, "BPM: %lu", bpm); // Convert the integer to a string
+    I2C_LCD_WriteString(LCD_1, buffer); // Write the string to the LCD
+}
 
 void updateDisplay(void)
 {

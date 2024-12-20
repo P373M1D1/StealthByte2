@@ -34,6 +34,7 @@ extern "C" {
 #include <string.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdint.h>
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
@@ -51,6 +52,8 @@ extern volatile uint8_t sendTapTempoFlag;
 extern volatile uint8_t tapTempoPressed;
 extern volatile uint8_t syncButtonPressed;
 extern volatile uint8_t syncSamples;
+extern volatile uint32_t capture;
+extern volatile uint8_t tapTempoPressed;
 /* USER CODE END EC */
 
 /* Exported macro ------------------------------------------------------------*/
@@ -66,13 +69,12 @@ void Error_Handler(void);
 /* USER CODE BEGIN EFP */
 void updateBpm(uint32_t capture);
 void updateDisplay(void);
+void calculateTapTempo(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
 #define MCO_Pin GPIO_PIN_0
 #define MCO_GPIO_Port GPIOH
-#define MIDI_TX_Pin GPIO_PIN_0
-#define MIDI_TX_GPIO_Port GPIOA
 #define Rotary_SW_Pin GPIO_PIN_4
 #define Rotary_SW_GPIO_Port GPIOA
 #define Rotary_SW_EXTI_IRQn EXTI4_IRQn
@@ -113,6 +115,8 @@ void updateDisplay(void);
 #define TCK_GPIO_Port GPIOA
 #define MIDI_RX_Pin GPIO_PIN_0
 #define MIDI_RX_GPIO_Port GPIOD
+#define MIDI_TX_Pin GPIO_PIN_1
+#define MIDI_TX_GPIO_Port GPIOD
 #define SWO_Pin GPIO_PIN_3
 #define SWO_GPIO_Port GPIOB
 #define Rotary_CLK_Pin GPIO_PIN_6

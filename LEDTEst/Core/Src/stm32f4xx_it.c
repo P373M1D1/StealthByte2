@@ -42,8 +42,8 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN PV */
-extern uint8_t receivedByte;
-extern TIM_HandleTypeDef htim3; // Ensure htim3 is declared globally
+
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -61,40 +61,25 @@ volatile int16_t encoderPosition = 0;
 volatile uint8_t lastEncoderState = 0;
 
 
-#define NUM_SAMPLES 4               // Number of samples for averaging durations
-#define PERIOD_SAMPLES 4            // Number of samples for averaging periods
-#define DEBOUNCE_DELAY_TICKS 250000 // 250ms debounce in timer ticks
-#define TIMER_FREQ 1000000          // Timer frequency in Hz (1 MHz)
-#define TIMEOUT_PERIOD_TICKS 2000000 // Timeout period in timer ticks (2s)
-#define INITIAL_DURATION 50000      // Default initial duration (50ms)
-
-#define DEBOUNCE_DELAY_MS 5
 
 
 
-volatile uint32_t durations[NUM_SAMPLES] = {0};   // Circular buffer for durations
-volatile uint8_t durationIndex = 0;               // Index in the buffer
-volatile uint8_t validSamples = 0;                // Count of valid samples
-volatile uint32_t previousCapture = 0;            // Previous capture value
-volatile uint32_t lastDebounceCapture = 0;        // Last capture for debounce
-volatile float currentBPM = 120.0;                // Default BPM
-volatile uint32_t periods[PERIOD_SAMPLES] = {0};  // Circular buffer for periods
-volatile uint8_t periodIndex = 0;                 // Index in the buffer
-volatile uint8_t validPeriods = 0;                // Count of valid period samples
+
+
+
 volatile uint8_t tapTempoPressed = 0;
 volatile uint8_t syncButtonPressed = 0;
 volatile uint8_t syncSamples = 4;
+
+
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
 extern TIM_HandleTypeDef htim2;
 extern TIM_HandleTypeDef htim3;
+extern TIM_HandleTypeDef htim5;
 extern UART_HandleTypeDef huart4;
 /* USER CODE BEGIN EV */
-extern uint8_t buffer[3];
-extern uint8_t statusByteControlChange;
-extern uint8_t statusByteProgramChange;
-extern uint8_t statusControllerNumber;
 
 /* USER CODE END EV */
 
@@ -307,6 +292,20 @@ void EXTI15_10_IRQHandler(void)
 }
 
 /**
+  * @brief This function handles TIM5 global interrupt.
+  */
+void TIM5_IRQHandler(void)
+{
+  /* USER CODE BEGIN TIM5_IRQn 0 */
+
+  /* USER CODE END TIM5_IRQn 0 */
+  HAL_TIM_IRQHandler(&htim5);
+  /* USER CODE BEGIN TIM5_IRQn 1 */
+
+  /* USER CODE END TIM5_IRQn 1 */
+}
+
+/**
   * @brief This function handles UART4 global interrupt.
   */
 void UART4_IRQHandler(void)
@@ -323,8 +322,8 @@ void UART4_IRQHandler(void)
 /* USER CODE BEGIN 1 */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-  // Check if the interrupt is from TIM3
-  if (htim->Instance == TIM3)
+  // Check if the interrupt is from TIM5
+  if (htim->Instance == TIM5)														// used to be TIM3 !!!
   {
          //Send the MIDI Tap Tempo CC message
     synchroniseTempo();
@@ -365,7 +364,7 @@ void RotaryEncoderTurnedCallback(void)
             // Update the timer and display with the new BPM
             if (currentBPM > 0.0 && currentBPM < 240.0) { // Set a reasonable upper BPM limit
 
-                        configureTimer(&htim3, currentBPM);
+                        configureTimer(&htim5, currentBPM);						// used to be TIM3
                     }
             updateBpm((uint32_t)currentBPM);
         }
@@ -391,77 +390,13 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 }
 
 
-void configureTimer(TIM_HandleTypeDef *htim, uint32_t bpm) {
-    // Your existing code for configuring the timer
-    uint32_t timerClock = 96000000;
-    uint32_t prescaler = htim->Init.Prescaler + 1;
-    uint32_t period = (timerClock / ((bpm / 60.0) * prescaler)) - 1;
-
-    __HAL_TIM_SET_AUTORELOAD(htim, period);
-    __HAL_TIM_SET_COMPARE(htim, TIM_CHANNEL_1, period / 8); // Example: 25% duty cycle
-    __HAL_TIM_SET_COUNTER(htim, 0);
-}
-
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) {
     if (htim->Instance == TIM2 && htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1) {
-        uint32_t capture = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
-        uint32_t duration;
-        static uint32_t lastCaptureTime = 0;
-        static uint32_t lastValidDuration = INITIAL_DURATION;
-
-        // Handle timer overflow
-        if (capture >= previousCapture) {
-            duration = capture - previousCapture;
-        } else {
-            duration = (0xFFFFFFFF - previousCapture) + capture + 1;
-        }
-        previousCapture = capture;
-
-        // If the time since the last valid tap exceeds TIMEOUT_PERIOD_TICKS, use the last valid duration
-        if ((capture - lastCaptureTime) > TIMEOUT_PERIOD_TICKS) {
-            duration = lastValidDuration;
-        }
-        lastCaptureTime = capture;
-
-        // Debounce: Ignore taps too close together
-        if ((capture - lastDebounceCapture) < DEBOUNCE_DELAY_TICKS) {
-            return;
-        }
-        lastDebounceCapture = capture;
-
-        // Store the duration in the circular buffer
-        durations[durationIndex] = duration;
-        durationIndex = (durationIndex + 1) % NUM_SAMPLES;
-
-        // Track valid samples up to NUM_SAMPLES
-        if (validSamples < NUM_SAMPLES) {
-            validSamples++;
-        }
-
-        // Calculate average duration
-        uint32_t totalDuration = 0;
-        for (uint8_t i = 0; i < validSamples; i++) {
-            totalDuration += durations[i];
-        }
-        float meanDuration = (float)totalDuration / validSamples;
-
-        // Calculate BPM
-        float timeInSeconds = meanDuration / TIMER_FREQ;
-        float bpm = (timeInSeconds > 0) ? (60.0 / timeInSeconds) : 0;
-
-        // Safety check to avoid invalid period or BPM values
-        if (bpm > 0.0 && bpm < 240.0) { // Set a reasonable upper BPM limit
-            currentBPM = bpm;
-            configureTimer(&htim3, currentBPM);
-        }
-
-        // Update the display with the new BPM
-        updateBpm((uint32_t)currentBPM);
-        sendTapTempo();
-        // Update last known duration
-        lastValidDuration = duration;
+        capture = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
+        tapTempoPressed = 1;
     }
 }
+
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {

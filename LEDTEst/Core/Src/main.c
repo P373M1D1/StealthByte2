@@ -23,6 +23,7 @@
 /* USER CODE BEGIN Includes */
 #include "../../I2C_LCD/I2C_LCD.h"
 #include <stdio.h>
+#include "timers.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -45,6 +46,7 @@ I2C_HandleTypeDef hi2c1;
 
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
+TIM_HandleTypeDef htim5;
 
 UART_HandleTypeDef huart4;
 UART_HandleTypeDef huart3;
@@ -73,6 +75,7 @@ static void MX_I2C1_Init(void);
 static void MX_UART4_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_TIM3_Init(void);
+static void MX_TIM5_Init(void);
 /* USER CODE BEGIN PFP */
 void handleMidiMessage(void);
 void sendTapTempo(void);
@@ -80,14 +83,7 @@ void sendTapTempo(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-void updateBpm(uint32_t bpm) {
-    char buffer[16]; // Buffer to store the converted string
-    I2C_LCD_SetCursor(LCD_1, 5, 0);
-    I2C_LCD_WriteString(LCD_1, "               ");
-    I2C_LCD_SetCursor(LCD_1, 0, 0); // Set the cursor on the LCD
-    sprintf(buffer, "BPM: %lu", bpm); // Convert the integer to a string
-    I2C_LCD_WriteString(LCD_1, buffer); // Write the string to the LCD
-}
+
 
 /* USER CODE END 0 */
 
@@ -128,11 +124,12 @@ int main(void)
   MX_UART4_Init();
   MX_TIM2_Init();
   MX_TIM3_Init();
+  MX_TIM5_Init();
   /* USER CODE BEGIN 2 */
   char midi_value_str[32]; // Buffer to hold the string representation of the MIDI byte
   I2C_LCD_Init(LCD_1);
   I2C_LCD_SetCursor(LCD_1, 0, 0);
-  I2C_LCD_WriteString(LCD_1, "BPM: 0");
+  I2C_LCD_WriteString(LCD_1, "BPM: 120");
   I2C_LCD_SetCursor(LCD_1, 0, 1);
   snprintf(midi_value_str, sizeof(midi_value_str), "Controller: %d", controllerNumber);
   I2C_LCD_WriteString(LCD_1, midi_value_str);
@@ -142,11 +139,12 @@ int main(void)
   I2C_LCD_SetCursor(LCD_1, 0, 3);
   snprintf(midi_value_str, sizeof(midi_value_str), "Program: %d", programChangeNumber);
   I2C_LCD_WriteString(LCD_1, midi_value_str);
-
+  configureTimer(&htim5, 120);
   HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_1);
   HAL_UART_Receive_IT(&huart4, &receivedByte, 1);
   // Start PWM signal
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
+  HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -159,7 +157,12 @@ int main(void)
 
 	          updateDisplay();  // Call the display update function
 	      }
-	      /* USER CODE END WHILE */
+	  if (tapTempoPressed ==1){
+		  tapTempoPressed = 0;
+		  calculateTapTempo();
+
+	  }
+    /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
   }
@@ -267,7 +270,7 @@ static void MX_TIM2_Init(void)
   htim2.Instance = TIM2;
   htim2.Init.Prescaler = 95;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 4294967295;
+  htim2.Init.Period = 4294967294;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_IC_Init(&htim2) != HAL_OK)
@@ -350,6 +353,65 @@ static void MX_TIM3_Init(void)
   HAL_TIM_Base_Start_IT(&htim3);
   /* USER CODE END TIM3_Init 2 */
   HAL_TIM_MspPostInit(&htim3);
+
+}
+
+/**
+  * @brief TIM5 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM5_Init(void)
+{
+
+  /* USER CODE BEGIN TIM5_Init 0 */
+
+  /* USER CODE END TIM5_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+
+  /* USER CODE BEGIN TIM5_Init 1 */
+
+  /* USER CODE END TIM5_Init 1 */
+  htim5.Instance = TIM5;
+  htim5.Init.Prescaler = 9599;
+  htim5.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim5.Init.Period = 5999999;
+  htim5.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim5.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim5) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim5, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_Init(&htim5) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim5, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 499;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_PWM_ConfigChannel(&htim5, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM5_Init 2 */
+  HAL_TIM_Base_Start_IT(&htim5);
+  /* USER CODE END TIM5_Init 2 */
+  HAL_TIM_MspPostInit(&htim5);
 
 }
 
