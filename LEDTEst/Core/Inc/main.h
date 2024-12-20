@@ -80,8 +80,6 @@ void calculateTapTempo(void);
 #define Rotary_SW_EXTI_IRQn EXTI4_IRQn
 #define TIM2_CH1_Pin GPIO_PIN_5
 #define TIM2_CH1_GPIO_Port GPIOA
-#define TapTempoLED_Pin GPIO_PIN_6
-#define TapTempoLED_GPIO_Port GPIOA
 #define LD1_Pin GPIO_PIN_0
 #define LD1_GPIO_Port GPIOB
 #define TapTempo_Pin GPIO_PIN_12
@@ -93,10 +91,8 @@ void calculateTapTempo(void);
 #define STLK_RX_GPIO_Port GPIOD
 #define STLK_TX_Pin GPIO_PIN_9
 #define STLK_TX_GPIO_Port GPIOD
-#define USB_PowerSwitchOn_Pin GPIO_PIN_6
-#define USB_PowerSwitchOn_GPIO_Port GPIOG
-#define USB_OverCurrent_Pin GPIO_PIN_7
-#define USB_OverCurrent_GPIO_Port GPIOG
+#define TapTempoLED_Pin GPIO_PIN_6
+#define TapTempoLED_GPIO_Port GPIOC
 #define Rotary_DT_Pin GPIO_PIN_7
 #define Rotary_DT_GPIO_Port GPIOC
 #define USB_SOF_Pin GPIO_PIN_8

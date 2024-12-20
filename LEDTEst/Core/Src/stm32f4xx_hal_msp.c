@@ -233,9 +233,9 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef* htim)
   /* USER CODE BEGIN TIM3_MspPostInit 0 */
 
   /* USER CODE END TIM3_MspPostInit 0 */
-    __HAL_RCC_GPIOA_CLK_ENABLE();
+    __HAL_RCC_GPIOC_CLK_ENABLE();
     /**TIM3 GPIO Configuration
-    PA6     ------> TIM3_CH1
+    PC6     ------> TIM3_CH1
     */
     GPIO_InitStruct.Pin = TapTempoLED_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
@@ -362,12 +362,19 @@ void HAL_UART_MspInit(UART_HandleTypeDef* huart)
     PD0     ------> UART4_RX
     PD1     ------> UART4_TX
     */
-    GPIO_InitStruct.Pin = MIDI_RX_Pin|MIDI_TX_Pin;
+    GPIO_InitStruct.Pin = MIDI_RX_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_PULLUP;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
     GPIO_InitStruct.Alternate = GPIO_AF11_UART4;
-    HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+    HAL_GPIO_Init(MIDI_RX_GPIO_Port, &GPIO_InitStruct);
+
+    GPIO_InitStruct.Pin = MIDI_TX_Pin;
+    GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
+    GPIO_InitStruct.Pull = GPIO_PULLUP;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+    GPIO_InitStruct.Alternate = GPIO_AF11_UART4;
+    HAL_GPIO_Init(MIDI_TX_GPIO_Port, &GPIO_InitStruct);
 
     /* UART4 interrupt Init */
     HAL_NVIC_SetPriority(UART4_IRQn, 0, 0);

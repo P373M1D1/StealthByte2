@@ -433,8 +433,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
                 midi_received_flag = 1;  // Signal main loop
             }
         }
-
-        // Re-enable UART receive interrupt
+                // Re-enable UART receive interrupt
         HAL_UART_Receive_IT(huart, &receivedByte, 1);
     }
 }

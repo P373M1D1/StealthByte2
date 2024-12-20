@@ -8,20 +8,27 @@
 #define TIMEOUT 100
 extern UART_HandleTypeDef huart4; // Assuming UART2 is used for MIDI communication
 
+uint8_t midiMessage1[3] = {
+    0xB0 | (0 & 0x0F), // CC message on MIDI channel 1
+    0x5D,              // Controller Number 81
+    0x7F               // Value 127
+};
+
+uint8_t midiMessage2[3] = {
+    0xB0 | (0 & 0x0F), // CC message on MIDI channel 1
+    0x5D,              // Controller Number 81
+    0x00               // Value 0
+};
+
+
+
 void synchroniseTempo(void)
 {
     uint8_t midiMessage[3];
 
-    // Construct the MIDI CC message
-    midiMessage[0] = 0xB0 | (MIDI_CHANNEL & 0x0F); // Ensure MIDI_CHANNEL is masked to 4 bits (0-15)
-    midiMessage[1] = TAP_TEMPO_CC;                // Controller Number (0-127)
-    midiMessage[2] = 0x7F;                        // Value (127 for max press)
-
     if (syncButtonPressed == 1 && syncSamples != 0)
     {
-    	HAL_GPIO_TogglePin(LD1_GPIO_Port, LD1_Pin);
-        HAL_UART_Transmit(&huart4, midiMessage, sizeof(midiMessage), TIMEOUT);
-        HAL_GPIO_TogglePin(LD1_GPIO_Port, LD1_Pin);
+    	sendTapTempo();
         syncSamples--;
 
         if (syncSamples == 0)
@@ -33,11 +40,11 @@ void synchroniseTempo(void)
 
 void sendTapTempo(void){
 	uint8_t midiMessage[3];
-    midiMessage[0] = 0xB0 | (MIDI_CHANNEL & 0x0F); // Ensure MIDI_CHANNEL is masked to 4 bits (0-15)
-    midiMessage[1] = TAP_TEMPO_CC;                // Controller Number (0-127)
-    midiMessage[2] = 0x7F;                        // Value (127 for max press)
 
 	HAL_GPIO_TogglePin(LD1_GPIO_Port, LD1_Pin);
-	    	    HAL_UART_Transmit(&huart4, midiMessage, sizeof(midiMessage), TIMEOUT);
+	    	    HAL_UART_Transmit(&huart4, midiMessage1, sizeof(midiMessage), TIMEOUT);
+
+
 	    	    HAL_GPIO_TogglePin(LD1_GPIO_Port, LD1_Pin);
+	    	    //HAL_UART_Transmit(&huart4, midiMessage2, sizeof(midiMessage), TIMEOUT);
 }
