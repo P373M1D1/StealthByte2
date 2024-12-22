@@ -69,7 +69,7 @@ void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
 void updateBpm(uint32_t capture);
-void updateDisplay(void);
+//void updateDisplay(void);
 void calculateTapTempo(void);
 /* USER CODE END EFP */
 

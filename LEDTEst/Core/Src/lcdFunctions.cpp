@@ -19,6 +19,7 @@ void updateBpm(uint32_t bpm) {
     I2C_LCD_WriteString(LCD_1, buffer);
 }
 
+
 void updateDisplay(void)
 {
     static uint8_t previousControllerNumber = 0xFF;
