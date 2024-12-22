@@ -1,0 +1,95 @@
+Common MIDI Commands
+
+    Note Off:
+        Description: Turns off a note.
+        Status Byte: 0x80 to 0x8F
+        Data Bytes: Note Number, Velocity
+
+    Note On:
+        Description: Turns on a note.
+        Status Byte: 0x90 to 0x9F
+        Data Bytes: Note Number, Velocity
+
+    Polyphonic Key Pressure (Aftertouch):
+        Description: Applies pressure to individual keys.
+        Status Byte: 0xA0 to 0xAF
+        Data Bytes: Note Number, Pressure Value
+
+    Control Change:
+        Description: Changes the value of a controller.
+        Status Byte: 0xB0 to 0xBF
+        Data Bytes: Controller Number, Controller Value
+
+    Program Change:
+        Description: Changes the instrument or program.
+        Status Byte: 0xC0 to 0xCF
+        Data Bytes: Program Number
+
+    Channel Pressure (Aftertouch):
+        Description: Applies pressure to all keys on a channel.
+        Status Byte: 0xD0 to 0xDF
+        Data Bytes: Pressure Value
+
+    Pitch Bend Change:
+        Description: Changes the pitch bend value.
+        Status Byte: 0xE0 to 0xEF
+        Data Bytes: LSB (Least Significant Byte), MSB (Most Significant Byte)
+
+System Common Messages
+
+    System Exclusive (SysEx):
+        Description: Manufacturer-specific messages.
+        Status Byte: 0xF0
+        Data Bytes: Variable length, ending with 0xF7
+
+    MIDI Time Code Quarter Frame:
+        Description: Synchronization message.
+        Status Byte: 0xF1
+        Data Bytes: Message Type and Values
+
+    Song Position Pointer:
+        Description: Points to a position in the song.
+        Status Byte: 0xF2
+        Data Bytes: LSB, MSB
+
+    Song Select:
+        Description: Selects a song.
+        Status Byte: 0xF3
+        Data Bytes: Song Number
+
+    Tune Request:
+        Description: Requests all devices to tune.
+        Status Byte: 0xF6
+        Data Bytes: None
+
+System Real-Time Messages
+
+    Timing Clock:
+        Description: Synchronization clock.
+        Status Byte: 0xF8
+        Data Bytes: None
+
+    Start:
+        Description: Starts the playback.
+        Status Byte: 0xFA
+        Data Bytes: None
+
+    Continue:
+        Description: Continues the playback.
+        Status Byte: 0xFB
+        Data Bytes: None
+
+    Stop:
+        Description: Stops the playback.
+        Status Byte: 0xFC
+        Data Bytes: None
+
+    Active Sensing:
+        Description: Checks if the connection is active.
+        Status Byte: 0xFE
+        Data Bytes: None
+
+    System Reset:
+        Description: Resets all devices.
+        Status Byte: 0xFF
+        Data Bytes: None

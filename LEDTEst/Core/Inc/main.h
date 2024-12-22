@@ -35,11 +35,12 @@ extern "C" {
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdint.h>
+
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
-
+extern UART_HandleTypeDef *MIDI_0;
 /* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/
@@ -123,6 +124,7 @@ void calculateTapTempo(void);
 
 /* USER CODE BEGIN Private defines */
 #define LCD_1 I2C_LCD_1
+
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

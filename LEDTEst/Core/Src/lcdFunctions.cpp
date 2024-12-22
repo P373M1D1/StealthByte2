@@ -2,7 +2,7 @@
 #include "stm32f4xx_hal.h"
 #include "../../I2C_LCD/I2C_LCD.h"
 #include "main.h"
-
+#include "midiFunctions.h"
 // External variables used in the function
 
 
@@ -40,6 +40,7 @@ void updateDisplay(void)
         snprintf(midi_value_str, sizeof(midi_value_str), "Val: %3d", controllerValue); // %3d ensures the value is right-aligned in a field width of 3
         I2C_LCD_WriteString(LCD_1, midi_value_str);
         previousControllerValue = controllerValue;
+        sendControlChange(MIDI_0, 0, controllerNumber, controllerValue);
     }
 
     if (programChangeNumber != previousProgramChangeNumber)
@@ -48,6 +49,7 @@ void updateDisplay(void)
         snprintf(midi_value_str, sizeof(midi_value_str), "Pgm: %3d", programChangeNumber); // %3d ensures the value is right-aligned in a field width of 3
         I2C_LCD_WriteString(LCD_1, midi_value_str);
         previousProgramChangeNumber = programChangeNumber;
+        sendProgramChange(MIDI_0, 0, programChangeNumber);
     }
 }
 

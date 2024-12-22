@@ -8,6 +8,8 @@
 #include "timers.h"
 #include "midiFunctions.h"
 
+extern UART_HandleTypeDef *MIDI_0;
+
 volatile uint32_t durations[NUM_SAMPLES] = {0};   // Circular buffer for durations
 volatile uint8_t durationIndex = 0;               // Index in the buffer               // Count of valid samples
 volatile uint32_t previousCapture = 0;            // Previous capture value
@@ -17,7 +19,7 @@ volatile uint32_t capture = 0;                    // Capture value
 volatile uint32_t periods[PERIOD_SAMPLES] = {0};  // Circular buffer for periods
 volatile uint8_t periodIndex = 0;                 // Index in the buffer
 volatile uint8_t validPeriods = 0;                // Count of valid period samples
-double correctionValue = 1.0499;
+double correctionValue = 1.0399;
 uint8_t validSamples = 0;
 uint8_t lastValidDuration= 0;
 
@@ -93,7 +95,7 @@ void calculateTapTempo()
 
 	        // Update the display with the new BPM
 	        updateBpm((uint32_t)currentBPM);
-	        sendTapTempo();
+	        synchroniseTempo(MIDI_0);
 	        // Update last known duration
 	        lastValidDuration = duration;
 	    }

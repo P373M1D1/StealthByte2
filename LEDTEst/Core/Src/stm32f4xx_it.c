@@ -32,7 +32,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+extern UART_HandleTypeDef *MIDI_0;
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -59,14 +59,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim);
 
 volatile int16_t encoderPosition = 0;
 volatile uint8_t lastEncoderState = 0;
-
-
-
-
-
-
-
-
 volatile uint8_t tapTempoPressed = 0;
 volatile uint8_t syncButtonPressed = 0;
 volatile uint8_t syncSamples = 4;
@@ -78,7 +70,7 @@ volatile uint8_t syncSamples = 4;
 extern TIM_HandleTypeDef htim2;
 extern TIM_HandleTypeDef htim3;
 extern TIM_HandleTypeDef htim5;
-extern UART_HandleTypeDef huart4;
+//extern UART_HandleTypeDef huart4;
 /* USER CODE BEGIN EV */
 
 /* USER CODE END EV */
@@ -313,7 +305,8 @@ void UART4_IRQHandler(void)
   /* USER CODE BEGIN UART4_IRQn 0 */
 
   /* USER CODE END UART4_IRQn 0 */
-  HAL_UART_IRQHandler(&huart4);
+  //HAL_UART_IRQHandler(&huart4);
+  HAL_UART_IRQHandler(MIDI_0);
   /* USER CODE BEGIN UART4_IRQn 1 */
 
   /* USER CODE END UART4_IRQn 1 */
@@ -326,7 +319,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   if (htim->Instance == TIM5)														// used to be TIM3 !!!
   {
          //Send the MIDI Tap Tempo CC message
-    synchroniseTempo();
+    synchroniseTempo(MIDI_0);
     }
 }
 
@@ -403,7 +396,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     static uint8_t lastStatusByte = 0;
     static uint8_t expectingValue = 0;
 
-    if (huart->Instance == UART4)
+    if (huart->Instance == MIDI_0 ->Instance)
     {
         // Check if this is a new status byte
         if (receivedByte & 0x80)  // Status bytes have MSB set
@@ -434,7 +427,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
             }
         }
                 // Re-enable UART receive interrupt
-        HAL_UART_Receive_IT(huart, &receivedByte, 1);
+        HAL_UART_Receive_IT(MIDI_0, &receivedByte, 1);
     }
 }
 

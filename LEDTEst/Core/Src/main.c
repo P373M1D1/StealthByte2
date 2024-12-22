@@ -24,6 +24,7 @@
 #include "../../I2C_LCD/I2C_LCD.h"
 #include <stdio.h>
 #include "timers.h"
+#include "midiFunctions.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -49,6 +50,8 @@ TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim5;
 
 UART_HandleTypeDef huart4;
+UART_HandleTypeDef *MIDI_0 = &huart4;
+
 UART_HandleTypeDef huart3;
 
 PCD_HandleTypeDef hpcd_USB_OTG_FS;
@@ -149,8 +152,10 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+
   while (1)
   {
+
 	  if (midi_received_flag == 1)
 	      {
 	          midi_received_flag = 0;  // Clear the flag
@@ -161,6 +166,10 @@ int main(void)
 		  calculateTapTempo();
 
 	  }
+
+	  //programChangeNumber ++;
+
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -437,15 +446,12 @@ static void MX_UART4_Init(void)
   huart4.Init.Mode = UART_MODE_TX_RX;
   huart4.Init.HwFlowCtl = UART_HWCONTROL_NONE;
   huart4.Init.OverSampling = UART_OVERSAMPLING_16;
-  if (HAL_UART_Init(&huart4) != HAL_OK)
+  if (HAL_UART_Init(MIDI_0) != HAL_OK)
   {
-    Error_Handler();
+      Error_Handler();
   }
-  /* USER CODE BEGIN UART4_Init 2 */
-	HAL_NVIC_SetPriority(UART4_IRQn, 0, 0);
-	HAL_NVIC_EnableIRQ(UART4_IRQn);
-  /* USER CODE END UART4_Init 2 */
-
+  HAL_NVIC_SetPriority(UART4_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(UART4_IRQn);
 }
 
 /**
