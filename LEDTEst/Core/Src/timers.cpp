@@ -1,6 +1,12 @@
 /*
  * timers.cpp
  *
+ * The Timers handle various tasks
+ *
+ * TIM2 - INPUT_CAPTURE for Tap Tempo Button (32bit timer) set to max
+ * TIM3 - Popup Screen timeout counter - set to 1 hz
+ * TIM5 - BPM Led PWM Generator 32bit counter set to bpm (0.1hz base rate = 120bpm)
+ *
  *  Created on: Dec 20, 2024
  *      Author: Pete
  */
@@ -22,6 +28,19 @@ volatile uint8_t validPeriods = 0;                // Count of valid period sampl
 double correctionValue = 1.0399;
 uint8_t validSamples = 0;
 uint8_t lastValidDuration= 0;
+
+
+void restart_TIM3(void)
+{
+    // Stop the timer
+    HAL_TIM_Base_Stop_IT(&htim3);  // Use HAL_TIM_Base_Stop_IT(&htim3) if interrupts are used
+
+    // Reset the counter
+    __HAL_TIM_SET_COUNTER(&htim3, 0);
+
+    // Start the timer
+    HAL_TIM_Base_Start_IT(&htim3);  // Use HAL_TIM_Base_Start_IT(&htim3) if interrupts are used
+}
 
 void configureTimer(TIM_HandleTypeDef *htim, uint32_t bpm) {
     // Timer clock frequency
@@ -92,10 +111,6 @@ void calculateTapTempo()
 
 	            configureTimer(&htim5, currentBPM);
 	        }
-
-	        // Update the display with the new BPM
-	        updateBpm((uint32_t)currentBPM);
-	        synchroniseTempo(MIDI_0);
 	        // Update last known duration
 	        lastValidDuration = duration;
 	    }

@@ -25,6 +25,7 @@ void synchroniseTempo(UART_HandleTypeDef *midiInstance) {
     if (syncButtonPressed == 1 && syncSamples != 0) {
         // send midi tap tempo message
         syncSamples--;
+        HAL_GPIO_TogglePin(LD1_GPIO_Port, LD1_Pin);
 
         if (syncSamples == 0) {
             syncButtonPressed = 0;

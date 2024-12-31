@@ -28,7 +28,7 @@ extern "C" {
 
 // Function prototypes
 void configureTimer(TIM_HandleTypeDef *htim, uint32_t bpm);
-
+void restart_TIM3(void);
 // Variable declarations
 extern volatile uint32_t durations[NUM_SAMPLES];
 extern volatile uint8_t durationIndex;

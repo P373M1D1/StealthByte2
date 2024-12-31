@@ -45,16 +45,19 @@ extern UART_HandleTypeDef *MIDI_0;
 
 /* Exported constants --------------------------------------------------------*/
 /* USER CODE BEGIN EC */
+extern volatile uint8_t instance;
+extern volatile uint8_t channel;
 extern volatile uint8_t controllerNumber;
 extern volatile uint8_t controllerValue;
 extern volatile uint8_t programChangeNumber;
-extern volatile uint8_t midi_received_flag;
+extern volatile uint8_t system_event_flag;
 extern volatile uint8_t sendTapTempoFlag;
 extern volatile uint8_t tapTempoPressed;
 extern volatile uint8_t syncButtonPressed;
 extern volatile uint8_t syncSamples;
 extern volatile uint32_t capture;
 extern volatile uint8_t tapTempoPressed;
+extern volatile uint8_t midi_event_type;
 /* USER CODE END EC */
 
 /* Exported macro ------------------------------------------------------------*/
@@ -70,16 +73,18 @@ void Error_Handler(void);
 /* USER CODE BEGIN EFP */
 void updateBpm(uint32_t capture);
 void calculateTapTempo(void);
+
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define sd sd
+#define Rotary_SW_Pin GPIO_PIN_4
+#define Rotary_SW_GPIO_Port GPIOE
+#define Rotary_SW_EXTI_IRQn EXTI4_IRQn
 #define MCO_Pin GPIO_PIN_0
 #define MCO_GPIO_Port GPIOH
-#define Rotary_SW_Pin GPIO_PIN_4
-#define Rotary_SW_GPIO_Port GPIOA
-#define Rotary_SW_EXTI_IRQn EXTI4_IRQn
-#define TIM2_CH1_Pin GPIO_PIN_5
-#define TIM2_CH1_GPIO_Port GPIOA
+#define BpmLed_Pin GPIO_PIN_0
+#define BpmLed_GPIO_Port GPIOA
 #define LD1_Pin GPIO_PIN_0
 #define LD1_GPIO_Port GPIOB
 #define TapTempo_Pin GPIO_PIN_12
@@ -91,8 +96,6 @@ void calculateTapTempo(void);
 #define STLK_RX_GPIO_Port GPIOD
 #define STLK_TX_Pin GPIO_PIN_9
 #define STLK_TX_GPIO_Port GPIOD
-#define TapTempoLED_Pin GPIO_PIN_6
-#define TapTempoLED_GPIO_Port GPIOC
 #define Rotary_DT_Pin GPIO_PIN_7
 #define Rotary_DT_GPIO_Port GPIOC
 #define USB_SOF_Pin GPIO_PIN_8
@@ -109,6 +112,8 @@ void calculateTapTempo(void);
 #define TMS_GPIO_Port GPIOA
 #define TCK_Pin GPIO_PIN_14
 #define TCK_GPIO_Port GPIOA
+#define TIM2_CH1_Pin GPIO_PIN_15
+#define TIM2_CH1_GPIO_Port GPIOA
 #define MIDI_RX_Pin GPIO_PIN_0
 #define MIDI_RX_GPIO_Port GPIOD
 #define MIDI_TX_Pin GPIO_PIN_1

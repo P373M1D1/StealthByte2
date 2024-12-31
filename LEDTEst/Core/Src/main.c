@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include "timers.h"
 #include "midiFunctions.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -35,6 +36,7 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define LCD_1 I2C_LCD_1
+UART_HandleTypeDef *MIDI_0;
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -43,6 +45,8 @@ uint8_t buffer [3];
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+DAC_HandleTypeDef hdac;
+
 I2C_HandleTypeDef hi2c1;
 
 TIM_HandleTypeDef htim2;
@@ -50,23 +54,25 @@ TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim5;
 
 UART_HandleTypeDef huart4;
-UART_HandleTypeDef *MIDI_0 = &huart4;
-
 UART_HandleTypeDef huart3;
 
 PCD_HandleTypeDef hpcd_USB_OTG_FS;
 
 /* USER CODE BEGIN PV */
+volatile uint8_t instance = 0;
+volatile uint8_t channel = 0;
 volatile uint8_t controllerNumber = 0;
 volatile uint8_t controllerValue = 0;
 volatile uint8_t programChangeNumber = 0;
-volatile uint8_t midi_received_flag = 0;
+volatile uint8_t system_event_flag = 0;
 // Declare the received byte variable
 uint8_t receivedByte;
 uint8_t statusByteControlChange = 0;
 uint8_t statusByteProgramChange = 0;
 uint8_t statusControllerNumber = 0;
 volatile uint8_t sendTapTempoFlag = 0;
+volatile uint8_t previousStandbyScreenFlag = 0;  // Previous state of the flag
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -77,11 +83,13 @@ static void MX_USB_OTG_FS_PCD_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_UART4_Init(void);
 static void MX_TIM2_Init(void);
-static void MX_TIM3_Init(void);
 static void MX_TIM5_Init(void);
+static void MX_DAC_Init(void);
+static void MX_TIM3_Init(void);
 /* USER CODE BEGIN PFP */
 void handleMidiMessage(void);
 void sendTapTempo(void);
+void restartTIM3(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -126,28 +134,20 @@ int main(void)
   MX_I2C1_Init();
   MX_UART4_Init();
   MX_TIM2_Init();
-  MX_TIM3_Init();
   MX_TIM5_Init();
+  MX_DAC_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
-  char midi_value_str[32]; // Buffer to hold the string representation of the MIDI byte
   I2C_LCD_Init(LCD_1);
-  I2C_LCD_SetCursor(LCD_1, 0, 0);
-  I2C_LCD_WriteString(LCD_1, "BPM: 120");
-  I2C_LCD_SetCursor(LCD_1, 0, 1);
-  snprintf(midi_value_str, sizeof(midi_value_str), "Ctl:   %d", controllerNumber);
-  I2C_LCD_WriteString(LCD_1, midi_value_str);
-  I2C_LCD_SetCursor(LCD_1, 0, 2);
-  snprintf(midi_value_str, sizeof(midi_value_str), "Val:   %d", controllerValue);
-  I2C_LCD_WriteString(LCD_1, midi_value_str);
-  I2C_LCD_SetCursor(LCD_1, 0, 3);
-  snprintf(midi_value_str, sizeof(midi_value_str), "Pgm:   %d", programChangeNumber);
-  I2C_LCD_WriteString(LCD_1, midi_value_str);
   configureTimer(&htim5, 120);
   HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_1);
   HAL_UART_Receive_IT(&huart4, &receivedByte, 1);
+  HAL_TIM_Base_Start_IT(&htim3);
   // Start PWM signal
-  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_1);
+  HAL_DAC_Start(&hdac, DAC_CHANNEL_1);     // Start DAC
+  MIDI_0 = &huart4;
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -156,20 +156,39 @@ int main(void)
   while (1)
   {
 
-	  if (midi_received_flag == 1)
+	  if (system_event_flag & EVENT_MIDI_RECEIVED)
 	      {
-	          midi_received_flag = 0;  // Clear the flag
-	          updateDisplay();  // Call the display update function
+	          system_event_flag &= ~EVENT_MIDI_RECEIVED;  // Clear the MIDI event flag
+
+	          switch (midi_event_type)
+	          {
+	              case 1: // Control Change
+	                  displayPopup(CONTROL_CHANGE);
+	                  //processControlChange(midi_data[0], midi_data[1]);
+	                  break;
+
+	              case 2: // Program Change
+	                  displayPopup(PROGRAM_CHANGE);
+	                  //processProgramChange(midi_data[0]);
+	                  break;
+	          }
 	      }
-	  if (tapTempoPressed ==1){
-		  tapTempoPressed = 0;
-		  calculateTapTempo();
 
-	  }
+	  if (system_event_flag & EVENT_TAP_TEMPO_PRESSED)
+	      {
+	          system_event_flag &= ~EVENT_TAP_TEMPO_PRESSED;  // Clear the OTHER event flag
+	          calculateTapTempo();
+	          updateBpm((uint32_t)currentBPM);
+	          synchroniseTempo(&huart4);
+	      }
 
-	  //programChangeNumber ++;
-
-
+	  if (system_event_flag & EVENT_SYNC_BUTTON_PRESSED)
+	  	  {
+		  	system_event_flag &= ~EVENT_SYNC_BUTTON_PRESSED;
+		  	syncButtonPressed = 1;
+		  	syncSamples = 6;
+		  	displaySyncMessage();
+	  	  }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -221,6 +240,46 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief DAC Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_DAC_Init(void)
+{
+
+  /* USER CODE BEGIN DAC_Init 0 */
+
+  /* USER CODE END DAC_Init 0 */
+
+  DAC_ChannelConfTypeDef sConfig = {0};
+
+  /* USER CODE BEGIN DAC_Init 1 */
+
+  /* USER CODE END DAC_Init 1 */
+
+  /** DAC Initialization
+  */
+  hdac.Instance = DAC;
+  if (HAL_DAC_Init(&hdac) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** DAC channel OUT1 config
+  */
+  sConfig.DAC_Trigger = DAC_TRIGGER_NONE;
+  sConfig.DAC_OutputBuffer = DAC_OUTPUTBUFFER_ENABLE;
+  if (HAL_DAC_ConfigChannel(&hdac, &sConfig, DAC_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN DAC_Init 2 */
+
+  /* USER CODE END DAC_Init 2 */
+
 }
 
 /**
@@ -319,15 +378,14 @@ static void MX_TIM3_Init(void)
 
   TIM_ClockConfigTypeDef sClockSourceConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
-  TIM_OC_InitTypeDef sConfigOC = {0};
 
   /* USER CODE BEGIN TIM3_Init 1 */
 
   /* USER CODE END TIM3_Init 1 */
   htim3.Instance = TIM3;
-  htim3.Init.Prescaler = 59999;
+  htim3.Init.Prescaler = 9559;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = 799;
+  htim3.Init.Period = 9999;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
@@ -339,28 +397,15 @@ static void MX_TIM3_Init(void)
   {
     Error_Handler();
   }
-  if (HAL_TIM_PWM_Init(&htim3) != HAL_OK)
-  {
-    Error_Handler();
-  }
   sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
   if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
   {
     Error_Handler();
   }
-  sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = 100;
-  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-  if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
-  {
-    Error_Handler();
-  }
   /* USER CODE BEGIN TIM3_Init 2 */
-  HAL_TIM_Base_Start_IT(&htim3);
+
   /* USER CODE END TIM3_Init 2 */
-  HAL_TIM_MspPostInit(&htim3);
 
 }
 
@@ -446,12 +491,14 @@ static void MX_UART4_Init(void)
   huart4.Init.Mode = UART_MODE_TX_RX;
   huart4.Init.HwFlowCtl = UART_HWCONTROL_NONE;
   huart4.Init.OverSampling = UART_OVERSAMPLING_16;
-  if (HAL_UART_Init(MIDI_0) != HAL_OK)
+  if (HAL_UART_Init(&huart4) != HAL_OK)
   {
-      Error_Handler();
+    Error_Handler();
   }
-  HAL_NVIC_SetPriority(UART4_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(UART4_IRQn);
+  /* USER CODE BEGIN UART4_Init 2 */
+
+  /* USER CODE END UART4_Init 2 */
+
 }
 
 /**
@@ -535,6 +582,7 @@ static void MX_GPIO_Init(void)
 /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOE_CLK_ENABLE();
   __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
@@ -551,8 +599,8 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pin : Rotary_SW_Pin */
   GPIO_InitStruct.Pin = Rotary_SW_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(Rotary_SW_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : LD1_Pin LD3_Pin LD2_Pin */

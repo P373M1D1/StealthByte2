@@ -23,6 +23,8 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "midiFunctions.h"
+#include "math.h"
+#include "lcdFunctions.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -32,7 +34,9 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-extern UART_HandleTypeDef *MIDI_0;
+extern UART_HandleTypeDef huart4;
+extern DAC_HandleTypeDef hdac;
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -62,15 +66,14 @@ volatile uint8_t lastEncoderState = 0;
 volatile uint8_t tapTempoPressed = 0;
 volatile uint8_t syncButtonPressed = 0;
 volatile uint8_t syncSamples = 4;
-
-
+volatile uint8_t midi_event_type = 0;
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
 extern TIM_HandleTypeDef htim2;
 extern TIM_HandleTypeDef htim3;
 extern TIM_HandleTypeDef htim5;
-//extern UART_HandleTypeDef huart4;
+extern UART_HandleTypeDef huart4;
 /* USER CODE BEGIN EV */
 
 /* USER CODE END EV */
@@ -305,23 +308,33 @@ void UART4_IRQHandler(void)
   /* USER CODE BEGIN UART4_IRQn 0 */
 
   /* USER CODE END UART4_IRQn 0 */
-  //HAL_UART_IRQHandler(&huart4);
-  HAL_UART_IRQHandler(MIDI_0);
+  HAL_UART_IRQHandler(&huart4);
   /* USER CODE BEGIN UART4_IRQn 1 */
 
   /* USER CODE END UART4_IRQn 1 */
 }
 
 /* USER CODE BEGIN 1 */
+
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
   // Check if the interrupt is from TIM5
   if (htim->Instance == TIM5)														// used to be TIM3 !!!
   {
          //Send the MIDI Tap Tempo CC message
-    synchroniseTempo(MIDI_0);
+    synchroniseTempo(&huart4);
+        }
+  if (htim->Instance == TIM3)
+  {
+	  HAL_TIM_Base_Stop_IT(&htim3);  // Use HAL_TIM_Base_Stop_IT(&htim3) if interrupts are used
+
+	      // Reset the counter
+	      __HAL_TIM_SET_COUNTER(&htim3, 0);
+	      standbyScreen();
+  }
     }
-}
+
+
 
 // Callback function for the rotary encoder
 void RotaryEncoderTurnedCallback(void)
@@ -375,10 +388,10 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
         {
             RotaryEncoderTurnedCallback();
         }
+
     if (GPIO_Pin == Rotary_SW_Pin)
-    {
-    	syncButtonPressed = 1;
-    	syncSamples = 6;
+    	{
+    	 	 system_event_flag |= EVENT_SYNC_BUTTON_PRESSED;
     	}
 }
 
@@ -386,22 +399,25 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) {
     if (htim->Instance == TIM2 && htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1) {
         capture = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
-        tapTempoPressed = 1;
+        system_event_flag |= EVENT_TAP_TEMPO_PRESSED;
+        //tapTempoPressed = 1;
     }
 }
 
-
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
+
     static uint8_t lastStatusByte = 0;
     static uint8_t expectingValue = 0;
 
-    if (huart->Instance == MIDI_0 ->Instance)
+    if (huart->Instance == UART4)
     {
+    	instance = 0;
         // Check if this is a new status byte
         if (receivedByte & 0x80)  // Status bytes have MSB set
         {
             lastStatusByte = receivedByte;
+            channel = lastStatusByte & 0x0F;
             expectingValue = 0;
         }
         else  // Data byte
@@ -415,15 +431,17 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
                 }
                 else if (expectingValue == 1)
                 {
-                    controllerValue = receivedByte;  // Store controller value
-                    midi_received_flag = 1;          // Signal main loop
+                    controllerValue = receivedByte;  			// Store controller value
+                    midi_event_type = 1;         				// Control Change
+                    system_event_flag |= EVENT_MIDI_RECEIVED;  	// Set MIDI event
                     expectingValue = 0;
                 }
             }
-            else if ((lastStatusByte & 0xF0) == 0xC0)  // Program Change
+            else if ((lastStatusByte & 0xF0) == 0xC0)  			// Program Change
             {
                 programChangeNumber = receivedByte;
-                midi_received_flag = 1;  // Signal main loop
+                midi_event_type = 2;        				 	// Program Change
+                system_event_flag |= EVENT_MIDI_RECEIVED;  		// Set MIDI event
             }
         }
                         // Re-enable UART receive interrupt

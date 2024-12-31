@@ -47,6 +47,10 @@
  extern uint8_t statusByteProgramChange;
  extern uint8_t statusControllerNumber;
  extern uint8_t receivedByte;
+
+#define EVENT_MIDI_RECEIVED  		0x01  // MIDI event
+#define EVENT_TAP_TEMPO_PRESSED     0x02  // Tap Tempo Pressed
+#define EVENT_SYNC_BUTTON_PRESSED	0x04	//
 /* USER CODE END EC */
 
 /* Exported macro ------------------------------------------------------------*/

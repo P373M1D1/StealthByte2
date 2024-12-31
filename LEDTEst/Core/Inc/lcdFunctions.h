@@ -7,10 +7,21 @@ extern "C" {
 
 #include "main.h"
 #include <stdint.h>
+#include <string.h>
 
+#define LCD_WIDTH 20
+#define LCD_HEIGHT 4
 
-void updateDisplay(void);
+typedef enum {
+    CONTROL_CHANGE,
+    PROGRAM_CHANGE,
+    // Add other message types here
+} MessageType;
+
+void displayPopup(MessageType messageType);
 void updateBpm(uint32_t bpm);
+void standbyScreen(void);
+void displaySyncMessage(void);
 
 #ifdef __cplusplus
 }
